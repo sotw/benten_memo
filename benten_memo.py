@@ -160,31 +160,35 @@ def doStuff(tTarget,id,comment_id):
 	cursor.execute(f"UPDATE SOI SET TITLE='{str(mytitle)}', PRICE='{str(price)}', AI='{ai_comment}' WHERE COMMENTID='{str(comment_id)}';")
 	stockdb.commit()
  
-def setup_logging(level):
+def setup_logging(log_level):
 	global DB
-	DB = logging.getLogger('benten') #replace
-	DB.setLevel(level)
+	DB = logging.getLogger('benten_memo') #replace
+	DB.setLevel(logging.DEBUG)
 	handler = logging.StreamHandler(sys.stdout)
-	handler.setFormatter(logging.Formatter('%(module)s %(levelname)s %(funcName)s| %(message)s'))
+	handler.setLevel(level=log_level)
+	handler.setFormatter(logging.Formatter('[%(module)s] [%(levelname)s] %(funcName)s| %(message)s'))
 	DB.addHandler(handler)
+	
 
 def verify():
 	global tTarget
 	global args
 
 	parser = argparse.ArgumentParser(description='This benten_memo ( Benzaiten ) is a personal memo system for Taiwan stock market') #replace
-	parser.add_argument('-v', '--verbose', dest='verbose', action = 'store_true', default=False, help='Verbose mode')
 	parser.add_argument('query', nargs='*', default=None)
 	parser.add_argument('-d', '--database', dest='database', action = 'store', default='/.benten_memo/benten_memo.db') #replace
 	parser.add_argument('-q', '--sqlite3', dest='sql3db', action = 'store', default='/.benten_memo/benten_memo.db3') #replace
 	parser.add_argument('-a', '--add', dest='add', action = 'store_true', default=False, help='add stock number you intent to say something')
 	parser.add_argument('-r', '--read', dest='read', action = 'store_true', default=False, help='dump records')
+	parser.add_argument('-s', '--show', dest='show', action = 'store_true', default=False, help='show existing records')
 	parser.add_argument('-k', '--kill', dest='kill', action = 'store_true', default=False, help='remove a stock from monitor list')
 	parser.add_argument('-l', '--list', dest='listme', action = 'store_true', default=False, help='old interface, reserved')
 	parser.add_argument('-u', '--update', dest='updateme', action = 'store_true', default=False, help='update')
+	parser.add_argument('-v', '--verbose', dest='verbose', action = 'store_true', default=False, help='Verbose mode')
+	
 	args = parser.parse_args()
 	tTarget = ' '.join(args.query)
-	log_level = logging.INFO
+	log_level = logging.WARNING
 	if args.verbose:
 		log_level = logging.DEBUG
 	#if not tTarget:
@@ -194,7 +198,7 @@ def verify():
 		print("Flag conflict, some flag are exclusive")
 		parser.print_help()
 		exit()
-	if not args.read and not args.kill and not args.add and not args.listme and not args.updateme:
+	if not args.read and not args.kill and not args.add and not args.listme and not args.updateme and not args.show:
 		parser.print_help()
 		exit()
 	setup_logging(log_level)
@@ -248,7 +252,7 @@ def	doDump():
 	for item in ScreenI:
 		target_str = f"|{item['Time']:>10}|{item['Serial']:>6}|{item['Title']:>8}|{Decimal(item['Price']):>8.2f}|{item['Comment']}"
 
-def doDumpEx(num=0):
+def doDumpEx(num=0,update=0):
 	global ScreenI
 	global stockdb
 	global cursor
@@ -256,9 +260,10 @@ def doDumpEx(num=0):
 	#	curr_idx+=1
 	#	print(f"Handling {curr_idx}/{max_entrys}", end='\r')
 	#	doStuff(staticStr,entry)
-	cursor.execute(f"SELECT COMMENTID,ID FROM SOI")
-	for rets in cursor.fetchall():
-		doStuff(staticStr,rets[1],rets[0])
+	if update == 1:
+		cursor.execute(f"SELECT COMMENTID,ID FROM SOI")
+		for rets in cursor.fetchall():
+			doStuff(staticStr,rets[1],rets[0])
 		
 	#print("|"+clrTx("               TIME","CYAN")+"|"+clrTx("Serial","CYAN")+"|"+clrTx("    Name","CYAN")+"|"+clrTx(" Price","CYAN")+"|"+clrTx("MEMO","CYAN"))
 
@@ -270,8 +275,12 @@ def doDumpEx(num=0):
 	for record in cursor.fetchall():
 		#print(record)		
 		ScreenI.append("------------------------------------------------------------------")
-		ScreenI.append(f"{record[3]}|{record[1]}|{record[2]}")
-		ScreenI.append(f"{record[4]}|{record[5]}")
+		_TIMESTAMP=clrTx(f"{record[3]}","GREY65")
+		_STOCKNUM=clrTx(f"{record[1]:>6}","BOLD")
+		_STOCKNAME=clrTx(f"{record[2]}","CYAN")
+		_CURPRICE=clrTx(f"{record[4]}","YELLOW")
+		ScreenI.append(f"{_TIMESTAMP}|{_STOCKNUM}|{_STOCKNAME}")
+		ScreenI.append(f"{_CURPRICE}|{record[5]}")
 	
 	for item in ScreenI:
 		print(item)
@@ -300,18 +309,25 @@ def main():
 	#doStuff(tTarget)
 	global stockdb
 	global cursor
+	global args
 	if args.read :
 		if len(tTarget) == 0:
 			id = 0
 		else:
 			id  = int(tTarget)
-		doDumpEx(id)
+		doDumpEx(id,1) # doDumpex(specific target?, retrival or not)
+	elif args.show:
+		if len(tTarget) == 0:
+			id = 0
+		else:
+			id  = int(tTarget)
+		doDumpEx(id,0) # doDumpex(specific target?, retrival or not)		
 	elif args.kill:
 		doKillALn(tTarget)
 	elif args.add:
 		doWriteLn(tTarget)
 	elif args.updateme:
-		doDumpEx()
+		doDumpEx(0,1)
 	stockdb.close()
 
 if __name__ == '__main__':
