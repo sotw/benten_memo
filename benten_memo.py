@@ -275,12 +275,14 @@ def doDumpEx(num=0,update=0):
 	for record in cursor.fetchall():
 		#print(record)		
 		ScreenI.append("------------------------------------------------------------------")
+		_MSGID=f"{record[0]}".zfill(3)
+		_MSGID=clrTx(f"{_MSGID}","AUQA")
 		_TIMESTAMP=clrTx(f"{record[3]}","GREY65")
 		_STOCKNUM=clrTx(f"{record[1]:>6}","BOLD")
 		_STOCKNAME=clrTx(f"{record[2]}","CYAN")
 		_CURPRICE=clrTx(f"{record[4]}","YELLOW")
-		ScreenI.append(f"{_TIMESTAMP}|{_STOCKNUM}|{_STOCKNAME}")
-		ScreenI.append(f"{_CURPRICE}|{record[5]}")
+		ScreenI.append(f"{_MSGID}|{_TIMESTAMP}|{_STOCKNUM}|{_STOCKNAME}")
+		ScreenI.append(f"Price:{_CURPRICE}|{record[5]}")
 	
 	for item in ScreenI:
 		print(item)
@@ -296,14 +298,13 @@ def doWriteLn(msg):
 	cursor.execute(f"INSERT OR REPLACE INTO SOI(ID,COMMENT) values({msgs[0]},'{msgs[1]}')")
 	stockdb.commit()
 
-def doKillALn(number):
-    index = ARGUDB.index(number)
-    ARGUDB.pop(index)
-    home = expanduser('~')
-    f = open(home+args.database,'w')
-    for entry in ARGUDB:
-        f.write(entry+'\n')
-    f.close()
+def doKillALn(msg):
+	global DB
+	global stockdb
+	global cursor
+	home = expanduser('~')
+	cursor.execute(f"DELETE FROM SOI WHERE COMMENTID={msg}")
+	stockdb.commit()
 
 def main():
 	#doStuff(tTarget)
