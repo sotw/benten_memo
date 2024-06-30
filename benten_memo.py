@@ -1,14 +1,9 @@
-#[]== Think this two-layered index seems common
-#[]== 1. Index page 2. detail page
-#[]== Rather than create two python, I should create one only
-
 import os, sys, re, codecs
 import argparse
 import logging
 import urllib
 import requests
 import sqlite3
-#import textwrap
 from os.path import expanduser
 from subprocess import PIPE
 from subprocess import Popen
@@ -179,6 +174,7 @@ def verify():
 	parser.add_argument('-d', '--database', dest='database', action = 'store', default='/.benten_memo/benten_memo.db') #replace
 	parser.add_argument('-q', '--sqlite3', dest='sql3db', action = 'store', default='/.benten_memo/benten_memo.db3') #replace
 	parser.add_argument('-a', '--add', dest='add', action = 'store_true', default=False, help='add stock number you intent to say something')
+	parser.add_argument('-g', '--global', dest='globalcomment', action = 'store_true', default=False, help='global comment without specific stock')
 	parser.add_argument('-r', '--read', dest='read', action = 'store_true', default=False, help='dump records')
 	parser.add_argument('-s', '--show', dest='show', action = 'store_true', default=False, help='show existing records')
 	parser.add_argument('-k', '--kill', dest='kill', action = 'store_true', default=False, help='remove a stock from monitor list')
@@ -232,8 +228,14 @@ def refreshDb():
 	COMMENT TEXT,
 	AI TEXT
 	);''')
-	DB.info("table created or existed")
 	stockdb.commit()
+	DB.info("table SOI created or existed")
+	cursor.execute('''CREATE TABLE IF NOT EXISTS KOKOROE
+	(KOKOROEID INTEGER PRIMARY KEY AUTOINCREMENT,
+	KOKOROE TEXT
+	);''')
+	stockdb.commit()
+	DB.info("table kokoroecreated or existed")
 
 def	doDump():
 	#for entry in ARGUDB:
@@ -242,15 +244,16 @@ def	doDump():
 	global cursor	
 	global ScreenI
 	ScreenI.clear()
-	print("|"+clrTx("      TIME","CYAN")+"|"+clrTx("Serial","CYAN")+"|"+clrTx("    Name","CYAN")+"|"+clrTx("     Price","CYAN"))
-
-	cursor.execute(f"SELECT * FROM SOI")
+	cursor.execute(f"SELECT * FROM KOKOROE ORDER BY KOKOROEID DESC")
+	ScreenI.append(f"    SN|GLOBAL COMMENT")
 	for record in cursor.fetchall():
-		#print(record)		
-		ScreenI.append({'Time':record[3], 'Serial':record[1], 'Title':record[2], 'Price':record[4], 'Comment':record[5]})
+		#print(record)
+		_MY_KOKOROE_SN=f"{record[0]:>6}"
+		_MY_KOKOROE=f"{record[1]}"
+		ScreenI.append(f"{_MY_KOKOROE_SN}|{_MY_KOKOROE}")
 
 	for item in ScreenI:
-		target_str = f"|{item['Time']:>10}|{item['Serial']:>6}|{item['Title']:>8}|{Decimal(item['Price']):>8.2f}|{item['Comment']}"
+		print(item)
 
 def doDumpEx(num=0,update=0):
 	global ScreenI
@@ -291,19 +294,26 @@ def doWriteLn(msg):
 	global DB
 	global stockdb
 	global cursor
-	msgs = msg.split(":")
-	if(len(msgs) !=2):
-		print(clrTx("you need to input [stock_num]:[comment]",'YELLOW'))
 	home = expanduser('~')
-	cursor.execute(f"INSERT OR REPLACE INTO SOI(ID,COMMENT) values({msgs[0]},'{msgs[1]}')")
-	stockdb.commit()
+	if args.globalcomment:
+		cursor.execute(f"INSERT OR REPLACE INTO KOKOROE(KOKOROE) values('{msg}')")
+		stockdb.commit()
+	else:
+		msgs = msg.split(":")
+		if(len(msgs) !=2):
+			print(clrTx("you need to input [stock_num]:[comment]",'YELLOW'))
+		cursor.execute(f"INSERT OR REPLACE INTO SOI(ID,COMMENT) values({msgs[0]},'{msgs[1]}')")
+		stockdb.commit()
 
 def doKillALn(msg):
 	global DB
 	global stockdb
 	global cursor
 	home = expanduser('~')
-	cursor.execute(f"DELETE FROM SOI WHERE COMMENTID={msg}")
+	if args.globalcomment:
+			cursor.execute(f"DELETE FROM KOKOROE WHERE KOKOROEID={msg}")
+	else:
+		cursor.execute(f"DELETE FROM SOI WHERE COMMENTID={msg}")
 	stockdb.commit()
 
 def main():
@@ -311,12 +321,16 @@ def main():
 	global stockdb
 	global cursor
 	global args
-	if args.read :
+	if args.read and args.globalcomment:
+		doDump()
+	elif args.read :
 		if len(tTarget) == 0:
 			id = 0
 		else:
 			id  = int(tTarget)
 		doDumpEx(id,1) # doDumpex(specific target?, retrival or not)
+	elif args.show and args.globalcomment:
+		doDump()
 	elif args.show:
 		if len(tTarget) == 0:
 			id = 0
