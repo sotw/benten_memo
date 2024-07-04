@@ -1,4 +1,4 @@
-![alt text](https://github.com/sotw/benten_memo/blob/origin/001small.png?raw=true)
+![benten and neko](https://github.com/sotw/benten_memo/blob/main/001small.png?raw=true)
 
 # Benten Memo
 
