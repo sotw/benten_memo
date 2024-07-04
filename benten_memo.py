@@ -4,12 +4,19 @@ import logging
 import urllib
 import requests
 import sqlite3
+
+import asyncio
+
+from time import sleep
+from time import time
+
 from os.path import expanduser
 from subprocess import PIPE
 from subprocess import Popen
 from lxml import etree
 from io import StringIO
 from pprint import pprint
+
 from decimal import *
 
 from requests.models import stream_decode_response_unicode
@@ -31,6 +38,7 @@ global staticStr
 global ScreenI
 global stockdb
 global cursor
+lock = asyncio.Lock()
 
 staticStr = 'https://tw.stock.yahoo.com/quote/'
 LINKS = []
@@ -80,8 +88,9 @@ def paintRED(string,target):
 	string = string.replace(target, clrTx(target,'RED'))
 	return string
 
-def doStuff(tTarget,id,comment_id):
+async def doStuff(tTarget,id,comment_id):
 	#print("enter doStuff")
+	global lock
 	global ScreenI
 	global stockdb
 	global cursor
@@ -152,9 +161,11 @@ def doStuff(tTarget,id,comment_id):
 	#print(f"INSERT OR REPLACE INTO SOI(ID, TITLE, COST, PRICE, UPDOWNSYMBOL, DIFF, TARGET_PRICE, AI, UPDOWNVALUE) values({str(num)},\
 	#	'{str(mytitle)}','{str(my_price)}','{str(price)}','{str(updownSymbol)}','{str(diff)}','{str(target_price)}','{ai_comment}','{str(my_tread_num)}')")
 
-	cursor.execute(f"UPDATE SOI SET TITLE='{str(mytitle)}', PRICE='{str(price)}', AI='{ai_comment}' WHERE COMMENTID='{str(comment_id)}';")
-	stockdb.commit()
- 
+	async with lock:
+		cursor.execute(f"UPDATE SOI SET TITLE='{str(mytitle)}', PRICE='{str(price)}', AI='{ai_comment}' WHERE COMMENTID='{str(comment_id)}';")
+		stockdb.commit()
+		print(f"{mytitle} updated!             ", end='\r')
+
 def setup_logging(log_level):
 	global DB
 	DB = logging.getLogger('benten_memo') #replace
@@ -255,7 +266,7 @@ def	doDump():
 	for item in ScreenI:
 		print(item)
 
-def doDumpEx(num=0,update=0):
+async def doDumpEx(num=0,update=0):
 	global ScreenI
 	global stockdb
 	global cursor
@@ -263,10 +274,15 @@ def doDumpEx(num=0,update=0):
 	#	curr_idx+=1
 	#	print(f"Handling {curr_idx}/{max_entrys}", end='\r')
 	#	doStuff(staticStr,entry)
+
 	if update == 1:
+		my_tasks = []
 		cursor.execute(f"SELECT COMMENTID,ID FROM SOI")
 		for rets in cursor.fetchall():
-			doStuff(staticStr,rets[1],rets[0])
+			itask = asyncio.create_task(doStuff(staticStr,rets[1],rets[0]))
+			my_tasks.append(itask)
+		for mytask in my_tasks:
+			await mytask
 		
 	#print("|"+clrTx("               TIME","CYAN")+"|"+clrTx("Serial","CYAN")+"|"+clrTx("    Name","CYAN")+"|"+clrTx(" Price","CYAN")+"|"+clrTx("MEMO","CYAN"))
 
@@ -316,8 +332,7 @@ def doKillALn(msg):
 		cursor.execute(f"DELETE FROM SOI WHERE COMMENTID={msg}")
 	stockdb.commit()
 
-def main():
-	#doStuff(tTarget)
+async def main():
 	global stockdb
 	global cursor
 	global args
@@ -328,7 +343,7 @@ def main():
 			id = 0
 		else:
 			id  = int(tTarget)
-		doDumpEx(id,1) # doDumpex(specific target?, retrival or not)
+		await doDumpEx(id,1) # doDumpex(specific target?, retrival or not)
 	elif args.show and args.globalcomment:
 		doDump()
 	elif args.show:
@@ -336,16 +351,16 @@ def main():
 			id = 0
 		else:
 			id  = int(tTarget)
-		doDumpEx(id,0) # doDumpex(specific target?, retrival or not)		
+		await doDumpEx(id,0) # doDumpex(specific target?, retrival or not)		
 	elif args.kill:
 		doKillALn(tTarget)
 	elif args.add:
 		doWriteLn(tTarget)
 	elif args.updateme:
-		doDumpEx(0,1)
+		await doDumpEx(0,1)
 	stockdb.close()
 
 if __name__ == '__main__':
 	verify()
 	refreshDb()
-	main()
+	asyncio.run(main())
