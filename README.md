@@ -61,7 +61,7 @@ There are also global memo for some insight sparks on your head.
 4. Delete specific note
    
    ```
-   benten_memo -
+   benten_memo -k [number]
    ```
 
 # What's new
