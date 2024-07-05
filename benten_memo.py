@@ -252,7 +252,7 @@ def	doDump():
 	#for entry in ARGUDB:
 	#	print(entry)
 	global stockdb
-	global cursor	
+	global cursor
 	global ScreenI
 	ScreenI.clear()
 	cursor.execute(f"SELECT * FROM KOKOROE ORDER BY KOKOROEID DESC")
@@ -262,9 +262,15 @@ def	doDump():
 		_MY_KOKOROE_SN=f"{record[0]:>6}"
 		_MY_KOKOROE=f"{record[1]}"
 		ScreenI.append(f"{_MY_KOKOROE_SN}|{_MY_KOKOROE}")
-
+	toggleColor=False
 	for item in ScreenI:
-		print(item)
+		if toggleColor is True:
+			print(clrTx(f"{item}","CYAN"))
+			toggleColor=False
+		else:
+			print(clrTx(f"{item}","YELLOW"))
+			toggleColor=True
+
 
 async def doDumpEx(num=0,update=0):
 	global ScreenI
@@ -322,15 +328,17 @@ def doWriteLn(msg):
 		stockdb.commit()
 
 def doKillALn(msg):
-	global DB
-	global stockdb
-	global cursor
-	home = expanduser('~')
-	if args.globalcomment:
-			cursor.execute(f"DELETE FROM KOKOROE WHERE KOKOROEID={msg}")
-	else:
-		cursor.execute(f"DELETE FROM SOI WHERE COMMENTID={msg}")
-	stockdb.commit()
+    global DB
+    global stockdb
+    global cursor
+    home = expanduser('~')
+    if args.globalcomment:
+        cursor.execute(f"DELETE FROM KOKOROE WHERE KOKOROEID={msg}")
+        doDump()
+        stockdb.commit()
+    else:
+        cursor.execute(f"DELETE FROM SOI WHERE COMMENTID={msg}")
+        stockdb.commit()
 
 async def main():
 	global stockdb
@@ -356,6 +364,7 @@ async def main():
 		doKillALn(tTarget)
 	elif args.add:
 		doWriteLn(tTarget)
+		doDump()
 	elif args.updateme:
 		await doDumpEx(0,1)
 	stockdb.close()
