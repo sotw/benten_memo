@@ -40,7 +40,7 @@ global stockdb
 global cursor
 lock = asyncio.Lock()
 
-staticStr = 'https://tw.stock.yahoo.com/quote/'
+staticStr = 'https://tw.stock.yahoo.com/quote/' #source one, should add more sources
 LINKS = []
 ARGUDB = []
 ScreenI = []
@@ -182,15 +182,18 @@ def verify():
 
 	parser = argparse.ArgumentParser(description='This benten_memo ( Benzaiten ) is a personal memo system for Taiwan stock market') #replace
 	parser.add_argument('query', nargs='*', default=None)
+	
+	group1 = parser.add_mutually_exclusive_group()
+	group1.add_argument('-a', '--add', dest='add', action = 'store_true', default=False, help='add stock number you intent to say something')
+	group1.add_argument('-k', '--kill', dest='kill', action = 'store_true', default=False, help='remove a stock from monitor list')
+	group1.add_argument('-u', '--update', dest='updateme', action = 'store_true', default=False, help='update')
+	
 	parser.add_argument('-d', '--database', dest='database', action = 'store', default='/.benten_memo/benten_memo.db') #replace
 	parser.add_argument('-q', '--sqlite3', dest='sql3db', action = 'store', default='/.benten_memo/benten_memo.db3') #replace
-	parser.add_argument('-a', '--add', dest='add', action = 'store_true', default=False, help='add stock number you intent to say something')
 	parser.add_argument('-g', '--global', dest='globalcomment', action = 'store_true', default=False, help='global comment without specific stock')
 	parser.add_argument('-r', '--read', dest='read', action = 'store_true', default=False, help='dump records')
 	parser.add_argument('-s', '--show', dest='show', action = 'store_true', default=False, help='show existing records')
-	parser.add_argument('-k', '--kill', dest='kill', action = 'store_true', default=False, help='remove a stock from monitor list')
 	parser.add_argument('-l', '--list', dest='listme', action = 'store_true', default=False, help='old interface, reserved')
-	parser.add_argument('-u', '--update', dest='updateme', action = 'store_true', default=False, help='update')
 	parser.add_argument('-v', '--verbose', dest='verbose', action = 'store_true', default=False, help='Verbose mode')
 	
 	args = parser.parse_args()
@@ -328,17 +331,19 @@ def doWriteLn(msg):
 		stockdb.commit()
 
 def doKillALn(msg):
-    global DB
-    global stockdb
-    global cursor
-    home = expanduser('~')
-    if args.globalcomment:
-        cursor.execute(f"DELETE FROM KOKOROE WHERE KOKOROEID={msg}")
-        doDump()
-        stockdb.commit()
-    else:
-        cursor.execute(f"DELETE FROM SOI WHERE COMMENTID={msg}")
-        stockdb.commit()
+	global DB
+	global stockdb
+	global cursor
+	home = expanduser('~')
+	user_input = input("Are you sure you want to DELETE? (yes/no): ")
+	if user_input.lower() in ["yes", "y"]:
+		if args.globalcomment:
+			cursor.execute(f"DELETE FROM KOKOROE WHERE KOKOROEID={msg}")
+			doDump()
+			stockdb.commit()
+		else:
+			cursor.execute(f"DELETE FROM SOI WHERE COMMENTID={msg}")
+			stockdb.commit()
 
 async def main():
 	global stockdb
