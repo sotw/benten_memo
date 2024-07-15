@@ -367,9 +367,12 @@ async def main():
 		await doDumpEx(id,0) # doDumpex(specific target?, retrival or not)		
 	elif args.kill:
 		doKillALn(tTarget)
-	elif args.add:
+	elif args.add and args.globalcomment:
 		doWriteLn(tTarget)
 		doDump()
+	elif args.add:
+		doWriteLn(tTarget)
+		await doDumpEx(0,0)
 	elif args.updateme:
 		await doDumpEx(0,1)
 	stockdb.close()
